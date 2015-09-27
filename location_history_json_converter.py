@@ -86,17 +86,14 @@ class loc_hist_parser():
 
         self.data[u'locations'] = out_dat
 
-
     def check_out_file(self, out_file):
         if os.path.exists(out_file):
             logger.warning('Output file already exists, overwritting: {}'.format(out_file))
-#             raise ValueError
         self.out_file = os.path.abspath(out_file)
 
         if self.in_file == self.out_file:
             logger.error("Input and output have to be different files")
             sys.exit()
-
 
     def export_to_json(self, out_file, js_var=None):
         self.check_out_file(out_file)
@@ -132,10 +129,7 @@ class loc_hist_parser():
     def export_to_json_raw(self, out_file):
         self.check_out_file(out_file)
         f_out = open(self.out_file, "w")
-#         self.data["locations"]
-
         f_out.write(json.dumps(self.data))
-
         f_out.close()
         logger.debug('=> Wrote {} places in {}'.format(len(self.data["locations"]),
                                                        self.out_file))
@@ -154,7 +148,6 @@ class loc_hist_parser():
         f_out.close()
         logger.debug('=> Wrote {}'.format(self.out_file))
 
-
     def export_to_kml(self, out_file):
         self.check_out_file(out_file)
         f_out = open(self.out_file, "w")
@@ -166,7 +159,8 @@ class loc_hist_parser():
         f_out.write("    <name>Location History</name>\n")
         for item in items:
             f_out.write("    <Placemark>\n")
-            # Order of these tags is important to make valid KML: TimeStamp, ExtendedData, then Point
+            # Order of these tags is important to make valid KML: TimeStamp,
+            # ExtendedData, then Point
             f_out.write("      <TimeStamp><when>")
             f_out.write(datetime.fromtimestamp(int(item["timestampMs"]) / 1000).strftime("%Y-%m-%dT%H:%M:%SZ"))
             f_out.write("</when></TimeStamp>\n")
@@ -197,13 +191,20 @@ class loc_hist_parser():
         items = self.data["locations"]
 
         f_out.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-        f_out.write("<gpx xmlns=\"http://www.topografix.com/GPX/1/1\" version=\"1.1\" creator=\"Google Latitude JSON Converter\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n")
+        f_out.write(("<gpx xmlns=\"http://www.topografix.com/GPX/1/1\" "
+                     "version=\"1.1\" "
+                     "creator=\"Google Latitude JSON Converter\" "
+                     "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
+                     "xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 "
+                     "http://www.topografix.com/GPX/1/1/gpx.xsd\">\n"))
         f_out.write("  <metadata>\n")
         f_out.write("    <name>Location History</name>\n")
         f_out.write("  </metadata>\n")
         if not gpx_tracks:
             for item in items:
-                f_out.write("  <wpt lat=\"%s\" lon=\"%s\">\n" % (item["latitudeE7"] / 10000000, item["longitudeE7"] / 10000000))
+                f_out.write("  <wpt lat=\"%s\" lon=\"%s\">\n" %
+                    (item["latitudeE7"] / 10000000,
+                     item["longitudeE7"] / 10000000))
                 if "altitude" in item:
                     f_out.write("    <ele>%d</ele>\n" % item["altitude"])
                 f_out.write("    <time>%s</time>\n" % str(datetime.fromtimestamp(int(item["timestampMs"]) / 1000).strftime("%Y-%m-%dT%H:%M:%SZ")))
@@ -230,7 +231,8 @@ class loc_hist_parser():
                     timedelta = -((int(item['timestampMs']) - int(lastloc['timestampMs'])) / 1000 / 60)
                     distancedelta = getDistanceFromLatLonInKm(item['latitudeE7'] / 10000000, item['longitudeE7'] / 10000000, lastloc['latitudeE7'] / 10000000, lastloc['longitudeE7'] / 10000000)
                     if timedelta > 10 or distancedelta > 40:
-                        # No points for 10 minutes or 40km in under 10m? Start a new track.
+                        # No points for 10 minutes or 40km in under 10m? Start
+                        # a new track.
                         f_out.write("    </trkseg>\n")
                         f_out.write("  </trk>\n")
                         f_out.write("  <trk>\n")
@@ -257,22 +259,9 @@ class loc_hist_parser():
         logger.debug('=> Wrote {}'.format(self.out_file))
 
 
-
 def main(argv):
     logging.basicConfig(level=logging.DEBUG,
                         format='%(message)s')
-
-    p = loc_hist_parser()
-    p.open_in_json('toto.json')
-    p.truncate_time_interval(time.mktime((2015, 9, 17, 0, 0, 0, 0, 0, 0)),
-                             time.mktime((2015, 9, 24, 0, 0, 0, 0, 0, 0)))
-    p.export_to_json_raw('toto_out.json')
-    p.export_to_csv('toto_out.csv')
-    p.export_to_json('toto_out.json')
-    p.export_to_kml('toto_out.kml')
-    p.export_to_gpx('toto_out.gpx')
-
-    sys.exit(1)
 
     arg_parser = ArgumentParser()
     arg_parser.add_argument("input", help="Input File (JSON)")
@@ -286,150 +275,28 @@ def main(argv):
         arg_parser.error("Input and output have to be different files")
         return
 
-    try:
-        json_data = open(args.input).read()
-    except:
-        print("Error opening input file")
-        return
+    p = loc_hist_parser()
+    p.open_in_json(args.input)
 
-    try:
-        data = json.loads(json_data)
-    except:
-        print("Error decoding json")
-        return
+    if args.format == "json" or args.format == "js":
+        if args.format == "js":
+            js_var = args.variable
+        else:
+            js_var = None
 
-    if "locations" in data and len(data["locations"]) > 0:
-        try:
-            f_out = open(args.output, "w")
-        except:
-            print("Error creating output file for writing")
-            return
+        p.export_to_json(args.output, js_var)
 
-        items = data["locations"]
+    if args.format == "csv":
+        p.export_to_csv(args.output)
 
-        if args.format == "json" or args.format == "js":
-            if args.format == "js":
-                f_out.write("window.%s = " % args.variable)
+    if args.format == "kml":
+        p.export_to_kml(args.output)
 
-            f_out.write("{\n")
-            f_out.write("  \"data\": {\n")
-            f_out.write("    \"items\": [\n")
-            first = True
+    if args.format == "gpx":
+        p.export_to_gpx(args.output, False)
 
-            for item in items:
-                if first:
-                    first = False
-                else:
-                    f_out.write(",\n")
-                f_out.write("      {\n")
-                f_out.write("         \"timestampMs\": %s,\n" % item["timestampMs"])
-                f_out.write("         \"latitude\": %s,\n" % (item["latitudeE7"] / 10000000))
-                f_out.write("         \"longitude\": %s\n" % (item["longitudeE7"] / 10000000))
-                f_out.write("      }")
-            f_out.write("\n    ]\n")
-            f_out.write("  }\n}")
-            if args.format == "js":
-                f_out.write(";")
-
-        if args.format == "csv":
-            f_out.write("Time,Location\n")
-            for item in items:
-                f_out.write(datetime.fromtimestamp(int(item["timestampMs"]) / 1000).strftime("%Y-%m-%d %H:%M:%S"))
-                f_out.write(",")
-                f_out.write("%s %s\n" % (item["latitudeE7"] / 10000000, item["longitudeE7"] / 10000000))
-
-        if args.format == "kml":
-            f_out.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-            f_out.write("<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n")
-            f_out.write("  <Document>\n")
-            f_out.write("    <name>Location History</name>\n")
-            for item in items:
-                f_out.write("    <Placemark>\n")
-                # Order of these tags is important to make valid KML: TimeStamp, ExtendedData, then Point
-                f_out.write("      <TimeStamp><when>")
-                f_out.write(datetime.fromtimestamp(int(item["timestampMs"]) / 1000).strftime("%Y-%m-%dT%H:%M:%SZ"))
-                f_out.write("</when></TimeStamp>\n")
-                if "accuracy" in item or "speed" in item or "altitude" in item:
-                    f_out.write("      <ExtendedData>\n")
-                    if "accuracy" in item:
-                        f_out.write("        <Data name=\"accuracy\">\n")
-                        f_out.write("          <value>%d</value>\n" % item["accuracy"])
-                        f_out.write("        </Data>\n")
-                    if "speed" in item:
-                        f_out.write("        <Data name=\"speed\">\n")
-                        f_out.write("          <value>%d</value>\n" % item["speed"])
-                        f_out.write("        </Data>\n")
-                    if "altitude" in item:
-                        f_out.write("        <Data name=\"altitude\">\n")
-                        f_out.write("          <value>%d</value>\n" % item["altitude"])
-                        f_out.write("        </Data>\n")
-                    f_out.write("      </ExtendedData>\n")
-                f_out.write("      <Point><coordinates>%s,%s</coordinates></Point>\n" % (item["longitudeE7"] / 10000000, item["latitudeE7"] / 10000000))
-                f_out.write("    </Placemark>\n")
-            f_out.write("  </Document>\n</kml>\n")
-
-        if args.format == "gpx" or args.format == "gpxtracks":
-            f_out.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
-            f_out.write("<gpx xmlns=\"http://www.topografix.com/GPX/1/1\" version=\"1.1\" creator=\"Google Latitude JSON Converter\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n")
-            f_out.write("  <metadata>\n")
-            f_out.write("    <name>Location History</name>\n")
-            f_out.write("  </metadata>\n")
-            if args.format == "gpx":
-                for item in items:
-                    f_out.write("  <wpt lat=\"%s\" lon=\"%s\">\n" % (item["latitudeE7"] / 10000000, item["longitudeE7"] / 10000000))
-                    if "altitude" in item:
-                        f_out.write("    <ele>%d</ele>\n" % item["altitude"])
-                    f_out.write("    <time>%s</time>\n" % str(datetime.fromtimestamp(int(item["timestampMs"]) / 1000).strftime("%Y-%m-%dT%H:%M:%SZ")))
-                    f_out.write("    <desc>%s" % datetime.fromtimestamp(int(item["timestampMs"]) / 1000).strftime("%Y-%m-%d %H:%M:%S"))
-                    if "accuracy" in item or "speed" in item:
-                        f_out.write(" (")
-                        if "accuracy" in item:
-                            f_out.write("Accuracy: %d" % item["accuracy"])
-                        if "accuracy" in item and "speed" in item:
-                            f_out.write(", ")
-                        if "speed" in item:
-                            f_out.write("Speed:%d" % item["speed"])
-                        f_out.write(")")
-                    f_out.write("</desc>\n")
-                    f_out.write("  </wpt>\n")
-            if args.format == "gpxtracks":
-                f_out.write("  <trk>\n")
-                f_out.write("    <trkseg>\n")
-                lastloc = None
-                # The deltas below assume input is in reverse chronological order.  If it's not, uncomment this:
-                # items = sorted(data["data"]["items"], key=lambda x: x['timestampMs'], reverse=True)
-                for item in items:
-                    if lastloc:
-                        timedelta = -((int(item['timestampMs']) - int(lastloc['timestampMs'])) / 1000 / 60)
-                        distancedelta = getDistanceFromLatLonInKm(item['latitudeE7'] / 10000000, item['longitudeE7'] / 10000000, lastloc['latitudeE7'] / 10000000, lastloc['longitudeE7'] / 10000000)
-                        if timedelta > 10 or distancedelta > 40:
-                            # No points for 10 minutes or 40km in under 10m? Start a new track.
-                            f_out.write("    </trkseg>\n")
-                            f_out.write("  </trk>\n")
-                            f_out.write("  <trk>\n")
-                            f_out.write("    <trkseg>\n")
-                    f_out.write("      <trkpt lat=\"%s\" lon=\"%s\">\n" % (item["latitudeE7"] / 10000000, item["longitudeE7"] / 10000000))
-                    if "altitude" in item:
-                        f_out.write("        <ele>%d</ele>\n" % item["altitude"])
-                    f_out.write("        <time>%s</time>\n" % str(datetime.fromtimestamp(int(item["timestampMs"]) / 1000).strftime("%Y-%m-%dT%H:%M:%SZ")))
-                    if "accuracy" in item or "speed" in item:
-                        f_out.write("        <desc>\n")
-                        if "accuracy" in item:
-                            f_out.write("          Accuracy: %d\n" % item["accuracy"])
-                        if "speed" in item:
-                            f_out.write("          Speed:%d\n" % item["speed"])
-                        f_out.write("        </desc>\n")
-                    f_out.write("      </trkpt>\n")
-                    lastloc = item
-                f_out.write("    </trkseg>\n")
-                f_out.write("  </trk>\n")
-            f_out.write("</gpx>\n")
-
-        f_out.close()
-
-    else:
-        print("No data found in json")
-        return
+    if args.format == "gpxtracks":
+        p.export_to_gpx(args.output, True)
 
 
 # Haversine formula
@@ -438,8 +305,8 @@ def getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2):
     dlat = deg2rad(lat2 - lat1)
     dlon = deg2rad(lon2 - lon1)
     a = math.sin(dlat / 2) * math.sin(dlat / 2) + \
-    math.cos(deg2rad(lat1)) * math.cos(deg2rad(lat2)) * \
-    math.sin(dlon / 2) * math.sin(dlon / 2)
+        math.cos(deg2rad(lat1)) * math.cos(deg2rad(lat2)) * \
+        math.sin(dlon / 2) * math.sin(dlon / 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     d = R * c  # Distance in km
     return d
